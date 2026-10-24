@@ -918,6 +918,35 @@
 
     </section>
 
+    <!-- REAL-TIME WEBCAM SIMULATION -->
+    <section class="webcam-section section-padding" id="webcam-sim">
+      <div class="section-label">
+        <span>07</span>
+        LIVE CAMERA
+      </div>
+      
+      <div class="simulation-heading" style="margin-bottom: 2rem;">
+        <h2>Neuromorphic Vision <span>Live</span></h2>
+        <p>Test the event-based detection using your own webcam.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+        <div style="display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+            <label for="sensitivity">Sensitivity Threshold:</label>
+            <input type="range" id="sensitivity" min="5" max="60" value="15">
+            <span id="sens-val">15</span>
+        </div>
+
+        <div style="display: flex; gap: 10px; background: #000; padding: 10px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+            <canvas id="standardCanvas" width="480" height="360" style="background-color: #000; border-radius: 6px;"></canvas>
+            <!-- FIX: Unique ID assigned to prevent overlap -->
+            <canvas id="webcamEventCanvas" width="480" height="360" style="background-color: #000; border-radius: 6px;"></canvas>
+        </div>
+      </div>
+
+      <video id="webcam" autoplay playsinline style="display: none;"></video>
+    </section>
+
   </main>
 
 
@@ -1369,6 +1398,149 @@
     }
 
     initialize();
+
+    // --- WEBCAM SIMULATION SCRIPT ---
+    const video = document.getElementById('webcam');
+    const stdCanvas = document.getElementById('standardCanvas');
+    // FIX: Target the new unique ID
+    const webcamEvtCanvas = document.getElementById('webcamEventCanvas'); 
+    
+    const stdCtx = stdCanvas.getContext('2d');
+    const webcamEvtCtx = webcamEvtCanvas.getContext('2d');
+    const slider = document.getElementById('sensitivity');
+    const sliderVal = document.getElementById('sens-val');
+
+    let prevLuminance = null;
+    let camWidth = 480; // Renamed to avoid clashing with first script
+    let camHeight = 360; // Renamed to avoid clashing with first script
+
+    slider.addEventListener('input', (e) => {
+        sliderVal.textContent = e.target.value;
+    });
+
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: camWidth, height: camHeight } 
+            });
+            video.srcObject = stream;
+            video.addEventListener('play', () => {
+                requestAnimationFrame(processFrame);
+            });
+        } catch (err) {
+            alert("Error accessing camera: " + err.message);
+        }
+    }
+
+    function processFrame() {
+        if (video.paused || video.ended) return;
+
+        stdCtx.save();
+        stdCtx.translate(camWidth, 0);
+        stdCtx.scale(-1, 1);
+        stdCtx.drawImage(video, 0, 0, camWidth, camHeight);
+        stdCtx.restore();
+
+        const currentImgData = stdCtx.getImageData(0, 0, camWidth, camHeight);
+        const pixels = currentImgData.data;
+        const totalPixels = pixels.length;
+
+        const eventImgData = webcamEvtCtx.createImageData(camWidth, camHeight);
+        const evtPixels = eventImgData.data;
+
+        if (!prevLuminance) {
+            prevLuminance = new Int16Array(camWidth * camHeight);
+            let idx = 0;
+            for (let i = 0; i < totalPixels; i += 4) {
+                prevLuminance[idx] = Math.round(0.299 * pixels[i] + 0.587 * pixels[i+1] + 0.114 * pixels[i+2]);
+                idx++;
+            }
+        }
+
+        const threshold = parseInt(slider.value);
+        let lumIdx = 0;
+
+        for (let i = 0; i < totalPixels; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i+1];
+            const b = pixels[i+2];
+            const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+
+            const prevGray = prevLuminance[lumIdx];
+            const diff = gray - prevGray;
+
+            evtPixels[i+3] = 255;
+
+            if (diff > threshold) {
+                evtPixels[i]   = 255; 
+                evtPixels[i+1] = 0;   
+                evtPixels[i+2] = 0;   
+                prevLuminance[lumIdx] = gray; 
+            } else if (diff < -threshold) {
+                evtPixels[i]   = 0;   
+                evtPixels[i+1] = 0;   
+                evtPixels[i+2] = 255; 
+                prevLuminance[lumIdx] = gray; 
+            } else {
+                evtPixels[i]   = 0;
+                evtPixels[i+1] = 0;
+                evtPixels[i+2] = 0;
+            }
+            lumIdx++;
+        }
+
+        webcamEvtCtx.putImageData(eventImgData, 0, 0);
+        requestAnimationFrame(processFrame);
+    }
+
+    // Initialize camera 
+    startCamera();
   </script>
 </body>
 </html>
+<!-- TEAM SECTION -->
+    <section class="team-section section-padding" id="team" style="padding-top: 4rem; padding-bottom: 4rem; text-align: center;">
+      
+      <div class="section-label" style="justify-content: center; margin-bottom: 2rem;">
+        <span>08</span>
+        THE CREATORS
+      </div>
+      
+      <div class="simulation-heading" style="margin-bottom: 3.5rem; display: flex; flex-direction: column; align-items: center;">
+        <h2>Meet the <span>Team.</span></h2>
+        <p style="margin-bottom: 1rem;">The developers and researchers behind this interactive simulation.</p>
+        <span style="display: inline-block; padding: 6px 16px; background: rgba(77, 232, 255, 0.1); border: 1px solid rgba(77, 232, 255, 0.3); border-radius: 20px; font-size: 0.85rem; color: #4DE8FF; font-weight: 600; letter-spacing: 1px;">BTech CE Div F 1st Year • 2026</span>
+      </div>
+
+      <div style="display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; max-width: 1000px; margin: 0 auto;">
+        
+        <!-- Team Member 1 -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <img src="WhatsApp Image 2026-10-25 at 2.04.30 AM.jpeg" alt="Atharv Sawant" style="width: 160px; height: 160px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(77, 232, 255, 0.4); margin-bottom: 1rem; box-shadow: 0 4px 20px rgba(77, 232, 255, 0.1);">
+          <strong style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Atharv Sawant</strong>
+          <span style="font-size: 0.9rem; color: rgba(255,255,255,0.6); font-family: 'DM Mono', monospace;">C427</span>
+        </div>
+
+        <!-- Team Member 2 -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <img src="WhatsApp Image 2026-10-24 at 9.39.00 PM.jpeg" alt="Divij Shah" style="width: 160px; height: 160px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(77, 232, 255, 0.4); margin-bottom: 1rem; box-shadow: 0 4px 20px rgba(77, 232, 255, 0.1);">
+          <strong style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Divij Shah</strong>
+          <span style="font-size: 0.9rem; color: rgba(255,255,255,0.6); font-family: 'DM Mono', monospace;">C464</span>
+        </div>
+
+        <!-- Team Member 3 -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <img src="WhatsApp Image 2026-10-24 at 10.08.38 PM.jpeg" alt="Freya Sheth" style="width: 160px; height: 160px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(77, 232, 255, 0.4); margin-bottom: 1rem; box-shadow: 0 4px 20px rgba(77, 232, 255, 0.1);">
+          <strong style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Freya Sheth</strong>
+          <span style="font-size: 0.9rem; color: rgba(255,255,255,0.6); font-family: 'DM Mono', monospace;">C465</span>
+        </div>
+
+        <!-- Team Member 4 -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <img src="Anshul Photo-01-03-24.JPG" alt="Shaurya Raj" style="width: 160px; height: 160px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(77, 232, 255, 0.4); margin-bottom: 1rem; box-shadow: 0 4px 20px rgba(77, 232, 255, 0.1);">
+          <strong style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Shaurya Raj</strong>
+          <span style="font-size: 0.9rem; color: rgba(255,255,255,0.6); font-family: 'DM Mono', monospace;">C404</span>
+        </div>
+
+      </div>
+    </section>
